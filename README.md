@@ -3,7 +3,7 @@
 
 > A fintech web prototype demonstrating AI product thinking, personalized onboarding funnels, goal-based investing, and fund comparison — built to showcase PM + AI capabilities.
 
-**[🔗 Live Demo →](https://yourusername.github.io/finspark-ai)**
+**[🔗 Live Demo →](https://ankitgarg2706-cmd.github.io/finspark-ai-Ankit/)**
 
 ---
 
