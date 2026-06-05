@@ -1,9 +1,9 @@
-# FinSpark AI 🚀
+# Zivest AI 🚀
 ### AI-Powered Investment Advisor · Built by [Ankit Kumar Garg](https://www.linkedin.com/in/ankit-garg-ba446788)
 
 > A fintech web prototype demonstrating AI product thinking, personalized onboarding funnels, goal-based investing, and fund comparison — built to showcase PM + AI capabilities.
 
-**[🔗 Live Demo →](https://ankitgarg2706-cmd.github.io/finspark-ai-Ankit/)**
+**[🔗 Live Demo →](https://ankitgarg2706-cmd.github.io/zivest-ai-by-ankit)**
 
 ---
 
