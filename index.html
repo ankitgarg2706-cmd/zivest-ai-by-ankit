@@ -341,63 +341,230 @@ function showPage(id,el){
   el.classList.add('active');
 }
 
-/* ===== ADVISOR ===== */
-const Qs=[
-  {id:'age',text:"Hi! I'm your Zivest AI advisor ✦\n\nAnswer 5 quick questions to get a fully personalized investment plan. First — what's your age group?",opts:['Under 25','25–35','35–45','45+']},
-  {id:'goal',text:"What's your primary financial goal?",opts:['Wealth creation','Child education','Retirement planning','Dream home']},
-  {id:'horizon',text:"How long can you stay invested without needing this money?",opts:['Under 3 years','3–5 years','5–10 years','10+ years']},
-  {id:'risk',text:"Your portfolio drops 25% in a market crash. What do you do?",opts:['Sell everything immediately','Hold nervously','Stay calm and hold','Invest even more!']},
-  {id:'income',text:"Last question — what's your monthly income range?",opts:['Under ₹50K','₹50K–₹1L','₹1L–₹2L','Above ₹2L']},
-];
-const KB={
-  sip:"SIP (Systematic Investment Plan) auto-invests a fixed amount monthly. It beats lumpsum for most investors via Rupee Cost Averaging — you buy more units when markets fall, fewer when they rise. In the current market correction, SIP investors are actually benefiting by accumulating more units at lower prices. Note: SIPs don't guarantee returns.",
-  lumpsum:"Lumpsum investing puts a large amount in at once — great if timed at market lows, but very hard to do consistently. If you have a windfall, consider a hybrid approach: invest 30–40% immediately, and spread the rest via SIP over 6–12 months to reduce timing risk.",
-  index:"Index funds track Nifty 50 or Sensex passively with very low cost (0.1–0.3% expense ratio vs 1–2% for active funds). Long-term data shows 80%+ of active funds underperform their benchmark after fees over 10 years. UTI Nifty 50 (AUM: ₹27,849 Cr, Expense: 0.27%) and HDFC Nifty 50 (AUM: ₹23,340 Cr, Expense: 0.26%) are solid starting points.",
-  elss:"ELSS gives Section 80C deduction up to ₹1.5L/year — saving up to ₹46,800 in tax at the 30% bracket. Shortest lock-in of all 80C options (3 years). Invests in equity, so potential for 12–15% long-term returns. Best for investors who need tax saving and wealth creation together.",
-  largecap:"Large cap funds invest in India's top 100 companies — Reliance, TCS, HDFC Bank, Infosys. More stable than mid/small caps. Historical 5Y CAGR: ~13–16%. SEBI mandates at least 80% in large cap stocks. Best as the core of any equity portfolio.",
-  midcap:"Mid cap funds (companies ranked 101–250) offer higher growth than large caps with more risk. HDFC Mid-Cap Opportunities has delivered ~22% 5Y CAGR historically. Needs 7+ year horizon. Can fall 40–50% in corrections. Best as a satellite (20–30%) alongside a large cap core.",
-  smallcap:"Small cap funds (companies ranked 251+) are highest risk, highest reward. Quant Small Cap has delivered ~32% 5Y CAGR — but with extreme volatility. Need 10+ year horizon. Keep under 15–20% of portfolio. Note: small caps have corrected significantly since Jan 2026 highs.",
-  debt:"Debt funds invest in bonds and G-Secs. Lower risk, better post-tax returns than FDs for 30% bracket investors. Good for 1–3 year goals. Options: Liquid funds (park cash), Short Duration, Corporate Bond. RBI has held repo rate at 6.5%.",
-  start:"Best starter fund right now: UTI or HDFC Nifty 50 Index Fund (low cost, well-diversified). Start SIP of ₹2,000–5,000/month. Once comfortable, add Parag Parikh Flexi Cap (AUM: ₹1.4L Cr, 5Y CAGR ~16%). For tax saving, add an ELSS fund. Keep 2–3 funds max to begin.",
-  market:"Nifty 50 is at ~23,523 (5 Jun 2026), about 11% below its January 2026 all-time high of 26,373. Markets have been in a correction phase. For long-term SIP investors, this is actually an opportunity — you accumulate more units at lower prices via Rupee Cost Averaging.",
-  default:"Great question! Core principles: start early, invest via SIP regularly, diversify across equity and debt, keep costs low with index funds, stay invested long-term. Current market ~11% below ATH is a reminder that volatility rewards disciplined investors. Ask me about any specific fund or concept!"
-};
-function getResp(m){
-  const l=m.toLowerCase();
-  if(l.includes('sip')&&l.includes('lump'))return KB.sip+'\n\n'+KB.lumpsum;
-  if(l.includes('sip'))return KB.sip;
-  if(l.includes('lump'))return KB.lumpsum;
-  if(l.includes('index')||l.includes('passive'))return KB.index;
-  if(l.includes('elss')||l.includes('tax')||l.includes('80c'))return KB.elss;
-  if(l.includes('large cap')||l.includes('largecap')||l.includes('bluechip'))return KB.largecap;
-  if(l.includes('mid cap')||l.includes('midcap'))return KB.midcap;
-  if(l.includes('small cap')||l.includes('smallcap'))return KB.smallcap;
-  if(l.includes('debt')||l.includes('bond')||l.includes('liquid'))return KB.debt;
-  if(l.includes('start')||l.includes('begin')||l.includes('first')||l.includes('which fund'))return KB.start;
-  if(l.includes('market')||l.includes('crash')||l.includes('correction'))return KB.market;
-  return KB.default;
-}
-let step=0,answers={};
+/* ===== ADVISOR — Zivest AI chat engine (upgraded) ===== */
+
+/* ---- DOM refs + small UI helpers (unchanged behaviour) ---- */
 const msgs=document.getElementById('messages'),ci=document.getElementById('ci'),sb=document.getElementById('sb');
 function scroll(){setTimeout(()=>msgs.scrollTop=msgs.scrollHeight,60)}
+function fmt(t){return (t||'').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/\n/g,'<br>');}
 function addMsg(type,content){
   const w=document.createElement('div');w.className='msg '+type;
   const av=document.createElement('div');av.className='av '+type;av.textContent=type==='ai'?'Z':'U';
   const b=document.createElement('div');b.className='bub';
-  if(typeof content==='string')b.innerHTML=content.replace(/\n/g,'<br>');else b.appendChild(content);
+  if(typeof content==='string')b.innerHTML=fmt(content);else b.appendChild(content);
   w.appendChild(av);w.appendChild(b);msgs.appendChild(w);scroll();return b;
 }
 function addTyping(){const w=document.createElement('div');w.className='msg ai';w.id='typ';const av=document.createElement('div');av.className='av ai';av.textContent='Z';const b=document.createElement('div');b.className='bub';b.innerHTML='<div class="typing"><span></span><span></span><span></span></div>';w.appendChild(av);w.appendChild(b);msgs.appendChild(w);scroll();}
 function remTyping(){const e=document.getElementById('typ');if(e)e.remove();}
+
+/* Render an AI message with optional tappable follow-up chips */
+function addAIResponse(text,chips){
+  const el=document.createElement('div');el.style.cssText='font-size:13.5px;line-height:1.7';
+  el.innerHTML=fmt(text);
+  if(chips&&chips.length){
+    const g=document.createElement('div');g.className='opts';
+    chips.forEach(c=>{const b=document.createElement('button');b.className='opt';b.textContent=c;b.onclick=()=>ask(c);g.appendChild(b);});
+    el.appendChild(g);
+  }
+  addMsg('ai',el);
+}
+
+/* ================= NLU: typo + keyword tolerant intent engine ================= */
+function norm(s){return (s||'').toLowerCase().replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();}
+function lev(a,b){const m=a.length,n=b.length;if(!m)return n;if(!n)return m;const d=[];for(let i=0;i<=m;i++)d[i]=[i];for(let j=0;j<=n;j++)d[0][j]=j;
+  for(let i=1;i<=m;i++)for(let j=1;j<=n;j++){const c=a[i-1]===b[j-1]?0:1;d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+c);}return d[m][n];}
+function fuzzyHit(token,kw){
+  if(token===kw)return 1;
+  if(token.length<4||kw.length<4)return 0;         // both must be 4+ chars for fuzzy/substring
+  if(token.includes(kw)||kw.includes(token))return 0.85;
+  const tol=kw.length<=4?1:2;                       // tolerate 1–2 char typos on longer words
+  const d=lev(token,kw);
+  return d<=tol?1-d/(kw.length+1):0;
+}
+function matchIntent(message){
+  const m=norm(message),tokens=m.split(' ').filter(Boolean);
+  let best=null,bestScore=0;
+  for(const it of INTENTS){
+    let score=0;
+    for(const kw of it.kw){
+      if(kw.includes(' ')){ if(m.includes(kw))score+=2; }   // phrase match = strong signal
+      else{let top=0;for(const t of tokens){const h=fuzzyHit(t,kw);if(h>top)top=h;}score+=top;}
+    }
+    if(score>bestScore){bestScore=score;best=it;}
+  }
+  return bestScore>=0.8?best:null;
+}
+function timeGreet(){const h=new Date().getHours();return h<5?'Hello':h<12?'Good morning':h<17?'Good afternoon':h<21?'Good evening':'Hello';}
+
+/* ================= Knowledge base (intents) ================= */
+const C_START=['📋 Build my personalized plan','What is a SIP?','How is the market?'];
+const INTENTS=[
+  {kw:['hi','hii','hiii','hey','heya','hello','helo','hii','hola','namaste','yo','gm','greetings','good morning','good afternoon','good evening','hey there'],
+   answer:()=>`${timeGreet()} ✦ I'm **Zivest**, your calm investing companion. Ask me anything — mutual funds, SIPs, taxes, the markets — or build your personalized plan. How can I help today? 🌱`,
+   chips:['📋 Build my personalized plan','What is a SIP?','How is the market?','Best fund for beginners?']},
+  {kw:['who are you','what are you','your name','about you','about zivest','what can you do','what can u do','can u do','can you do','capabilities','what do you do','who r u','what is zivest','help me'],
+   answer:"I'm **Zivest AI** 🌱 — an educational investing companion built by Ankit. I can explain mutual funds, SIPs, ELSS & taxes, decode market moves, and help you build a goal-based plan, all in plain, calm language. I'm not a SEBI-registered advisor, so please treat this as learning, not advice.",
+   chips:['📋 Build my personalized plan','How do I start investing?','How is the market?']},
+  {kw:['thanks','thank you','thank','thx','thnx','thanx','ty','thankyou','appreciate'],
+   answer:"Always happy to help 🙏 Investing well is mostly about staying calm and consistent — and you're already on the right path just by learning. Anything else on your mind?",
+   chips:['Best fund for beginners?','How is the market?','Explain ELSS']},
+  {kw:['bye','goodbye','good bye','see you','cya','take care','later'],
+   answer:"Take care, and invest with a calm mind 🌿 Markets rise and fall, but patience quietly compounds. Come back anytime!",
+   chips:['One more question','How is the market?']},
+  {kw:['mutual fund','mutual funds','mutualfund','mutual','what is mf','mf'],
+   answer:"A **mutual fund** pools money from many investors, and a professional manager invests it across stocks or bonds for you — so you get instant diversification without picking individual shares. You can start with as little as ₹500/month via a SIP. Calm, simple and beginner-friendly. 🌱",
+   chips:['What is a SIP?','How do I start investing?','What is an index fund?']},
+
+  {kw:['how to invest','where to start','how do i start','how do i invest','start','begin','beginner','beginners','newbie','new investor','getting started','first fund','best fund for beginner','best fund'],
+   answer:"Lovely place to begin 🌱 A calm first step: start a small SIP of **₹2,000–5,000/month** in a low-cost **Nifty 50 index fund** (UTI or HDFC). Once you're comfortable, add a **flexi-cap** fund like Parag Parikh and an **ELSS** for tax saving. Keep it to 2–3 funds and let time do the heavy lifting.",
+   chips:['What is a SIP?','What is an index fund?','How much should I invest?']},
+  {kw:['sip','sips','systematic investment','monthly investment','sip plan'],
+   answer:"A **SIP** invests a fixed amount automatically every month. Its quiet superpower is **rupee-cost averaging** — you buy more units when prices fall and fewer when they rise, so you never have to time the market. In today's correction, SIP investors are actually picking up cheaper units. It doesn't guarantee returns, but it builds beautiful discipline.",
+   chips:['SIP vs lumpsum?','What is a step-up SIP?','How much should I invest?']},
+  {kw:['lumpsum','lump sum','lumpsm','one time','onetime','one shot'],
+   answer:"**Lumpsum** means investing a large amount at once — powerful if you catch a market low, but very hard to time. If you have a windfall, a calmer approach is to invest 30–40% now and spread the rest via an **STP/SIP** over 6–12 months to ease the timing stress.",
+   chips:['What is an STP?','SIP vs lumpsum?']},
+  {kw:['sip vs lumpsum','lumpsum vs sip','sip or lumpsum','lumpsum or sip','sip vs lump sum','sip v lumpsum'],
+   answer:"For most people, **SIP wins** on peace of mind — it removes timing pressure and builds a steady habit. **Lumpsum** can do better *if* invested at a low, but that's hard to pull off consistently. A gentle middle path: invest part as lumpsum and route the rest through an STP.",
+   chips:['What is a SIP?','What is an STP?']},
+  {kw:['step up','stepup','top up','topup','step up sip','increase sip','annual increase'],
+   answer:"A **step-up (top-up) SIP** raises your monthly amount automatically each year — say +10%. Since your income usually grows too, this tiny change has a huge effect: a 10% annual step-up can grow your final corpus by 50%+ over 20 years. Calm, automatic, powerful.",
+   chips:['What is a SIP?','Power of compounding?']},
+  {kw:['stp','systematic transfer','transfer plan'],
+   answer:"An **STP (Systematic Transfer Plan)** parks a lumpsum in a low-risk liquid fund and shifts a fixed amount into equity each week or month. It's the gentle way to deploy a big sum without timing anxiety.",
+   chips:['What is an SWP?','SIP vs lumpsum?']},
+  {kw:['swp','systematic withdrawal','withdrawal plan'],
+   answer:"An **SWP (Systematic Withdrawal Plan)** is a SIP in reverse — it pays you a fixed amount monthly from your investments. It's loved by retirees who want a steady, tax-efficient 'salary' from their corpus while the rest keeps growing.",
+   chips:['Retirement planning','What is an STP?']},
+  {kw:['index','indexfund','index fund','passive','etf','nifty fund','sensex fund'],
+   answer:"**Index funds** quietly track the Nifty 50 or Sensex at very low cost (~0.1–0.3% vs 1–2% for active funds). Over 10+ years, most active funds struggle to beat the index after fees. UTI Nifty 50 and HDFC Nifty 50 are calm, dependable starting points.",
+   chips:['How do I start investing?','Direct vs regular plan?']},
+  {kw:['flexicap','flexi cap','flexi','multicap','multi cap'],
+   answer:"A **flexi-cap** fund invests across large, mid and small companies, shifting freely as opportunities change — so the manager handles the balancing for you. Parag Parikh Flexi Cap (₹1L Cr+ AUM) is a well-loved example, and a solid one-fund core for many investors.",
+   chips:['Large vs mid vs small cap?','Best fund for beginners?']},
+  {kw:['elss','80c','tax saving','tax saver','section 80c','save tax','tax deduction'],
+   answer:"**ELSS** funds save tax under Section 80C (invest up to ₹1.5L → save up to ₹46,800 at the 30% slab) with the *shortest* lock-in of all 80C options — just 3 years. Being equity, they also aim for 12–15% long-term growth. Tax saving and wealth, calmly combined.",
+   chips:['Tax on mutual funds?','What is a SIP?']},
+  {kw:['ltcg','stcg','capital gain','capital gains','tax on mutual','tax on redemption','taxation','tax','long term capital','short term capital'],
+   answer:"On **equity funds**, gains held over 1 year are **Long-Term Capital Gains** — taxed at 12.5%, with the first ₹1.25L of gains each year tax-free. Sold within a year, it's **Short-Term** at 20%. (Tax rules change, so please verify the current rates before filing.)",
+   chips:['What is ELSS?','When should I sell?']},
+  {kw:['large cap','largecap','bluechip','blue chip','top 100'],
+   answer:"**Large-cap** funds hold India's top 100 companies — TCS, Reliance, HDFC Bank, Infosys. Steadier than mid/small caps, with ~13–16% historical 5Y CAGR. A calm core for almost any portfolio.",
+   chips:['Mid cap funds?','Best fund for beginners?']},
+  {kw:['mid cap','midcap'],
+   answer:"**Mid-cap** funds (companies ranked 101–250) offer higher growth with more bumps — they can swing 40–50% in corrections. Best held 7+ years as a 20–30% 'satellite' alongside a large-cap core.",
+   chips:['Small cap funds?','What is risk?']},
+  {kw:['small cap','smallcap'],
+   answer:"**Small-cap** funds (rank 251+) are the thrill-ride: highest potential, highest volatility. They've corrected sharply since the Jan 2026 highs. Keep them under ~15–20% of your portfolio, and only with a 10+ year horizon and a calm stomach.",
+   chips:['What is risk?','Diversification?']},
+  {kw:['debt','bond','bonds','gilt','gsec','liquid fund','corporate bond','short duration'],
+   answer:"**Debt funds** invest in bonds and government securities — lower risk, and often better post-tax returns than FDs for higher tax brackets. Great for 1–3 year goals. Flavours: Liquid (park cash), Short Duration, and Corporate Bond.",
+   chips:['FD vs mutual fund?','Emergency fund?']},
+  {kw:['hybrid','balanced advantage','baf','balanced fund','asset allocation fund'],
+   answer:"**Hybrid / Balanced Advantage** funds mix equity and debt and auto-rebalance based on market valuations — buying low and trimming high, for you. A wonderfully calm choice for first-timers or medium-term goals.",
+   chips:['What is rebalancing?','Best fund for beginners?']},
+  {kw:['gold','sgb','sovereign gold','digital gold','gold bond'],
+   answer:"**Gold** brings calm to a portfolio — it often holds steady when stocks wobble. **Sovereign Gold Bonds (SGBs)** are the most efficient route: ~2.5% yearly interest *plus* gold's price, with zero storage worry. Keep gold to ~5–10% overall.",
+   chips:['Diversification?','What is risk?']},
+  {kw:['nps','national pension','pension scheme','pension','80ccd'],
+   answer:"**NPS** is a low-cost retirement account with an extra ₹50,000 deduction under 80CCD(1B) — on top of your 80C limit. It locks money till 60, which gently enforces long-term saving. A great retirement booster, though not your only investment.",
+   chips:['Retirement planning','PPF vs NPS?']},
+  {kw:['ppf','public provident','provident fund'],
+   answer:"**PPF** is a government-backed 15-year scheme — fully tax-free returns (~7.1%), zero risk, and 80C benefit. Wonderful for the 'sleep peacefully' part of your portfolio, though equity tends to grow faster over very long horizons.",
+   chips:['What is NPS?','FD vs mutual fund?']},
+  {kw:['fd','fixed deposit','bank deposit','recurring deposit'],
+   answer:"**FDs** are safe and predictable, but their returns often barely beat inflation, and the interest is fully taxed. For goals beyond 3 years, **debt or hybrid mutual funds** usually give better post-tax, inflation-beating returns — with only a little more variability.",
+   chips:['What is inflation?','Debt funds?']},
+  {kw:['nav','net asset value'],
+   answer:"**NAV (Net Asset Value)** is simply a fund's per-unit price, updated daily. A 'low' NAV isn't cheaper or better — what matters is the *percentage* your fund grows, not its NAV number.",
+   chips:['What is expense ratio?','What is CAGR?']},
+  {kw:['expense ratio','ter','expense','fund cost','fund fee','charges'],
+   answer:"The **expense ratio (TER)** is the small yearly fee a fund charges — say 0.5%. It quietly compounds, so lower is better: index funds (~0.2%) keep far more in your pocket than active funds (~1.5%) over decades.",
+   chips:['What is an index fund?','Direct vs regular plan?']},
+  {kw:['direct plan','regular plan','direct vs regular','direct fund','distributor','commission'],
+   answer:"Always prefer **Direct plans** 🌿 — same fund, but no distributor commission, so the expense ratio is lower and *all* the returns stay yours. 'Regular' plans quietly cost ~1% a year, which compounds into lakhs over time.",
+   chips:['What is expense ratio?','How do I start investing?']},
+  {kw:['cagr','xirr','annualized','annualised','rolling return'],
+   answer:"**CAGR** is the smoothed yearly growth rate of an investment. **XIRR** is its cousin for SIPs, where you invest on many dates. Both answer one calm question: 'what steady annual return did I really earn?' — far more honest than raw profit.",
+   chips:['What is NAV?','How is the market?']},
+  {kw:['compound','compounding','power of compounding','compound interest'],
+   answer:"**Compounding** is your returns earning their own returns — gentle at first, then breathtaking. ₹5,000/month at 12% becomes ~₹50 lakh in 20 years, but ~₹1 crore in 25. The secret ingredient is simply *time*, so start early and stay calm.",
+   chips:['What is a SIP?','How much should I invest?']},
+  {kw:['diversify','diversification','diversified','asset allocation','allocation','portfolio mix','spread risk'],
+   answer:"**Diversification** is gentle protection: spread money across equity, debt and a little gold so no single dip can hurt you much. A simple calm split — a large-cap core, a flexi-cap, plus some debt — covers most people beautifully.",
+   chips:['What is asset allocation?','Best fund for beginners?']},
+  {kw:['rebalance','rebalancing','re balance'],
+   answer:"**Rebalancing** means nudging your mix back to target once a year — trimming what grew too big, topping up what shrank. It quietly enforces 'sell high, buy low' without emotion. Balanced Advantage funds do this automatically for you.",
+   chips:['Diversification?','Hybrid funds?']},
+  {kw:['emergency','emergency fund','rainy day','contingency','safety net'],
+   answer:"Before investing, build a calm **emergency fund** 🛡️ — about 6 months of expenses in a **liquid fund** you can withdraw in a day or two. It's your peace of mind, so it never goes into equity.",
+   chips:['Debt funds?','How do I start investing?']},
+  {kw:['insurance','term plan','term insurance','ulip','endowment','lic','life cover','health insurance'],
+   answer:"Keep **insurance and investing separate** 🌱 — buy a plain **term plan** for protection (cheap, large cover) and invest the rest in mutual funds. Avoid ULIPs and endowment plans that mix both poorly, with low returns and high costs.",
+   chips:['How do I start investing?','PPF vs NPS?']},
+  {kw:['crypto','bitcoin','btc','ethereum','eth','cryptocurrency'],
+   answer:"Crypto is highly volatile and not regulated for investor protection in India, and gains are taxed at a flat 30%. If it interests you, treat it as a tiny, calm experiment — only money you can fully afford to lose — never your core savings.",
+   chips:['Diversification?','What is risk?']},
+  {kw:['international','us stocks','nasdaq','global fund','overseas','foreign','us market'],
+   answer:"**International funds** (US/global) let you own companies like Apple or Google and diversify beyond India. Note: many face investment limits and different taxation. A small 5–10% allocation is plenty for most calm portfolios.",
+   chips:['Diversification?','What is risk?']},
+  {kw:['reit','reits','real estate fund','invit','property fund'],
+   answer:"**REITs** let you invest in income-generating real estate (malls, offices) without buying property — they trade like stocks and pay regular dividends. A small slice can add calm, steady income to a portfolio.",
+   chips:['Diversification?','Gold investing?']},
+  {kw:['how much','how much should','how much to invest','how much invest','percent of income','what amount','50 30 20'],
+   answer:"A calm rule of thumb is **50-30-20**: 50% to needs, 30% to wants, 20% to savings & investments. Even ₹2,000/month started *today* matters more than a big amount started 'later'. Begin with what feels comfortable and step it up yearly.",
+   chips:['Step-up SIP?','What is a SIP?']},
+  {kw:['market','crash','correction','nifty','sensex','market today','market fall','market down','all time high','bull market','bear market'],
+   answer:"The **Nifty 50** is around 23,500 — roughly 11% below its Jan 2026 peak of 26,373, so we're in a gentle correction. Take a breath: historically, every 10%+ Nifty dip has recovered within 12–18 months. For SIP investors, lower prices simply mean more units. 🌿",
+   chips:['Should I stop my SIP?','Is this a good time to invest?','Top performing funds?']},
+  {kw:['stop sip','pause sip','stop my sip','should i stop','stop investing','pause investing'],
+   answer:"Please don't 🌿 Pausing SIPs during a fall means missing the cheapest units — the exact opposite of buying low. Unless you're facing a real cash crunch, the calmest and most rewarding move in a correction is simply to keep going.",
+   chips:['Is this a good time to invest?','How is the market?']},
+  {kw:['good time to invest','is it a good time','is this a good time','should i invest now','right time to invest','time to invest','invest now'],
+   answer:"For long-term goals, the best time is almost always *now* — and a correction like this makes it gentler, since you buy at lower prices. Don't wait to time the bottom; a steady SIP quietly handles that for you.",
+   chips:['What is a SIP?','How is the market?']},
+  {kw:['top performer','top performing','best performing','best funds','top funds','highest return'],
+   answer:"Over the last 5 years (verified CAGR): Quant Small Cap ~32%, Nippon India Small Cap ~28%, HDFC Mid-Cap Opp. ~22%, Parag Parikh Flexi Cap ~16%, Nifty 50 index funds ~13%. A calm reminder: past returns never guarantee future ones — match the fund to *your* horizon, not just last year's chart.",
+   chips:['Best fund for beginners?','What is risk?']},
+  {kw:['sell','redeem','redemption','exit','book profit','when to sell','should i sell','square off'],
+   answer:"Sell only when your **goal is near** (shift to safety 1–2 years before), the fund **persistently underperforms** its peers for 2–3 years, or your **allocation drifts** far off target. Never sell out of fear in a correction — that's when calm investors quietly win.",
+   chips:['What is rebalancing?','Tax on mutual funds?']},
+  {kw:['risk','risky','volatility','volatile','safe investment','how safe','risk profile','risk appetite'],
+   answer:"**Risk** here means how much your value bounces around. Equity swings the most (and grows most over time); debt is steadier; liquid funds barely move. The trick isn't avoiding risk — it's *matching* it to your time horizon so you can stay calm through the dips.",
+   chips:['What is diversification?','How much should I invest?']},
+  {kw:['inflation','rising prices','cost of living'],
+   answer:"**Inflation** (~6% in India) quietly shrinks money's value — ₹100 today buys less in 10 years. That's why parking everything in FDs feels safe but slowly loses ground. Equity's job is to grow faster than inflation over the long run.",
+   chips:['FD vs mutual fund?','Power of compounding?']},
+  {kw:['goal','goal based','goal planning','child education','dream home','financial goal','target amount','retirement','retire'],
+   answer:"Goal-based investing brings calm clarity 🎯 — match each dream to a timeline and the right fund type. Try the **Goal Planner** tab to see the exact monthly SIP for retirement, a home, your child's education and more.",
+   chips:['📋 Build my personalized plan','How much should I invest?','What is risk?']},
+];
+
+function brain(message){
+  const it=matchIntent(message);
+  if(it){const a=typeof it.answer==='function'?it.answer():it.answer;return{text:a,chips:it.chips||C_START};}
+  return{text:"That's a thoughtful question 🌱 I may not have the perfect answer for that exact one, but here's the calm core of investing: start early, invest monthly via SIP, keep costs low with index funds, diversify across equity & debt, and stay patient through the dips. Pick a topic below and I'll go deeper 👇",
+    chips:['How do I start investing?','What is a SIP?','How is the market?','Explain ELSS','Best fund for beginners?']};
+}
+
+/* ================= 5-question personalization flow ================= */
+const Qs=[
+  {id:'age',text:"First, a quick personalized plan ✦ What's your age group?",opts:['Under 25','25–35','35–45','45+']},
+  {id:'goal',text:"What's your primary financial goal?",opts:['Wealth creation','Child education','Retirement planning','Dream home']},
+  {id:'horizon',text:"How long can you stay invested without needing this money?",opts:['Under 3 years','3–5 years','5–10 years','10+ years']},
+  {id:'risk',text:"Your portfolio drops 25% in a market crash. What do you do?",opts:['Sell everything immediately','Hold nervously','Stay calm and hold','Invest even more!']},
+  {id:'income',text:"Last one — what's your monthly income range?",opts:['Under ₹50K','₹50K–₹1L','₹1L–₹2L','Above ₹2L']},
+];
+let step=0,answers={},state={mode:'free'};
 function addQ(q){
-  const el=document.createElement('div');el.style.cssText='font-size:13.5px;line-height:1.65';el.innerHTML=q.text.replace(/\n/g,'<br>');
+  const el=document.createElement('div');el.style.cssText='font-size:13.5px;line-height:1.65';el.innerHTML=fmt(q.text);
   if(q.opts){const g=document.createElement('div');g.className='opts';q.opts.forEach(o=>{const b=document.createElement('button');b.className='opt';b.textContent=o;b.onclick=()=>onOpt(o);g.appendChild(b);});el.appendChild(g);}
   addMsg('ai',el);
 }
 function onOpt(val){
   addMsg('user',val);answers[Qs[step].id]=val;step++;
-  if(step<Qs.length){addTyping();setTimeout(()=>{remTyping();addQ(Qs[step]);},700);}
-  else{addTyping();setTimeout(()=>{remTyping();showProfile();},1400);}
+  if(step<Qs.length){addTyping();setTimeout(()=>{remTyping();addQ(Qs[step]);},650);}
+  else{addTyping();setTimeout(()=>{remTyping();showProfile();},1300);}
 }
 function getProfile(){
   const rm={'Sell everything immediately':0,'Hold nervously':1,'Stay calm and hold':2,'Invest even more!':3};
@@ -411,10 +578,9 @@ function getProfile(){
 function calcSIP(m,y,r){const rate=r/12/100,n=y*12;return m*((Math.pow(1+rate,n)-1)/rate)*(1+rate);}
 function showProfile(){
   const p=getProfile();
-  const el=document.createElement('div');el.style.cssText='font-size:13.5px;line-height:1.7';
-  el.innerHTML=`Profile complete! You're a <strong>${p.label} investor</strong>. Your personalized plan is on the right →`;
-  addMsg('ai',el);
-  setTimeout(()=>{const f=document.createElement('div');f.style.cssText='font-size:13.5px;line-height:1.7';f.innerHTML=`Ask me anything: <em>"Which fund to start with?"</em>, <em>"Explain ELSS"</em>, <em>"What's happening in the market?"</em>`;addMsg('ai',f);ci.placeholder='Ask me anything about investing...';},400);
+  addMsg('ai',`Profile complete! You're a **${p.label} investor** 🌿 Your personalized plan is on the right →`);
+  state.mode='free';
+  setTimeout(()=>{addAIResponse("Now ask me anything — I'm here to keep it calm and clear.",['Which fund should I start with?','Explain ELSS','How is the market?']);ci.placeholder='Ask me anything about investing...';},450);
   const pp=document.getElementById('profilePanel');
   pp.innerHTML=`
     <div class="pcard">
@@ -436,9 +602,22 @@ function showProfile(){
     document.getElementById('sa').oninput=upd;document.getElementById('sy').oninput=upd;upd();
   },100);
 }
-function handleInput(){const val=ci.value.trim();if(!val)return;ci.value='';if(step<Qs.length){onOpt(val);return;}addMsg('user',val);addTyping();setTimeout(()=>{remTyping();addMsg('ai',getResp(val));},700);}
+
+/* ================= Routing ================= */
+function startQuiz(){state.mode='quiz';step=0;answers={};addMsg('user','Build my personalized plan');addTyping();setTimeout(()=>{remTyping();addQ(Qs[0]);},600);}
+function ask(text){
+  if(/personalized plan|build my plan|build my personalized plan|start the quiz|5 question/i.test(text)){startQuiz();return;}
+  if(state.mode==='quiz'){onOpt(text);return;}
+  addMsg('user',text);addTyping();
+  setTimeout(()=>{remTyping();const r=brain(text);addAIResponse(r.text,r.chips);},600);
+}
+function handleInput(){const val=ci.value.trim();if(!val)return;ci.value='';ask(val);}
 sb.onclick=handleInput;ci.onkeydown=e=>{if(e.key==='Enter')handleInput();};
-addQ(Qs[0]);
+
+/* ================= Opening greeting ================= */
+addAIResponse(`${timeGreet()} ✦ I'm **Zivest**, your calm investing companion. Ask me anything — mutual funds, SIPs, taxes, the markets — or build your personalized plan. How can I help today? 🌱`,
+  ['📋 Build my personalized plan','What is a SIP?','How is the market?','Best fund for beginners?']);
+ci.placeholder='Ask me anything — or type "hi"';
 
 /* ===== GOALS ===== */
 const goalData={
